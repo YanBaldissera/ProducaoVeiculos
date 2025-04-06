@@ -1,3 +1,5 @@
+package Fabricacao.ProducaoVeiculos.src;
+
 import java.util.concurrent.Semaphore;
 import java.util.Random;
 
@@ -5,7 +7,6 @@ public class Funcionario implements Runnable {
     private final int idEstacao, idFuncionario;
     private final Semaphore ferramentaEsquerda, ferramentaDireita;
     private static final Random random = new Random();
-
 
     public Funcionario(int idEstacao, int idFuncionario, Semaphore ferramentaEsquerda, Semaphore ferramentaDireita) {
         this.idEstacao = idEstacao;
@@ -16,27 +17,42 @@ public class Funcionario implements Runnable {
 
     @Override
     public void run() {
-        try {
-            while (FabricaVeiculos.estoquePecas.get() > 0 && Esteira.carrosProduzidos.get() < 40) {
+        while (true) {
+            if (FabricaVeiculos.producaoEncerrada) break;
+
+            try {
 
                 solicitarPeca();
 
+                // produção
+                System.out.println("[PROD] Estação " + idEstacao + " - Funcionário " + idFuncionario + " produzindo carro...");
+                Thread.sleep(new Random().nextInt(200) + 100);
 
                 ferramentaEsquerda.acquire();
                 ferramentaDireita.acquire();
 
+                // montagem usando ferramentas
 
-                produzirCarro();
 
+                if (FabricaVeiculos.producaoEncerrada) {
+                    ferramentaEsquerda.release();
+                    ferramentaDireita.release();
+                    break;
+                }
 
-                ferramentaDireita.release();
+                // escolhe cor e modelo
+                String[] cores = {"Vermelho", "Verde", "Azul"};
+                String[] modelos = {"SEDAN", "SUV"};
+                String carro = cores[new Random().nextInt(3)] + " " + modelos[new Random().nextInt(2)];
+
+                Esteira.adicionarCarro(carro);
+
                 ferramentaEsquerda.release();
+                ferramentaDireita.release();
 
-
-                Esteira.adicionarCarro(idEstacao, idFuncionario);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
             }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
         }
     }
 
@@ -45,17 +61,12 @@ public class Funcionario implements Runnable {
         try {
             if (FabricaVeiculos.estoquePecas.get() > 0) {
                 FabricaVeiculos.estoquePecas.decrementAndGet();
-                System.out.printf("[PECA] Estação %d - Funcionário %d pegou peça (%d restantes)%n",
-                        idEstacao, idFuncionario, FabricaVeiculos.estoquePecas.get());
+                System.out.printf("[PECA] Estação %d - Funcionário %d pegou peça%n",
+                        idEstacao, idFuncionario);
             }
         } finally {
             FabricaVeiculos.semaforoEsteira.release();
         }
     }
 
-    private void produzirCarro() throws InterruptedException {
-        System.out.printf("[PROD] Estação %d - Funcionário %d produzindo carro...%n",
-                idEstacao, idFuncionario);
-        Thread.sleep(1000 + random.nextInt(2000)); // Tempo de produção
-    }
 }

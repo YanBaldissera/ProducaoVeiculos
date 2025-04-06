@@ -1,22 +1,68 @@
+package Fabricacao.ProducaoVeiculos.src;
+
+import java.util.LinkedList;
+import java.util.Queue;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class Esteira {
     public static final int CAPACIDADE = 40;
-    public static final AtomicInteger carrosProduzidos = new AtomicInteger(0);
-    private static final String[] CORES = {"Vermelho", "Verde", "Azul"};
-    private static final String[] TIPOS = {"SUV", "SEDAN"};
+    private static final Queue<String> veiculos = new LinkedList<>();
     private static final AtomicInteger idCarro = new AtomicInteger(1);
+    private static final Semaphore semaforoEsteira = new Semaphore(CAPACIDADE, true);
 
-    public static synchronized void adicionarCarro(int idEstacao, int idFuncionario) {
-        if (carrosProduzidos.get() >= CAPACIDADE) return;
+    public static void adicionarCarro(String carro) {
+        if (FabricaVeiculos.producaoEncerrada) return;
 
-        int id = idCarro.getAndIncrement();
-        String cor = CORES[id % 3];
-        String tipo = TIPOS[id % 2];
-        int produzidos = carrosProduzidos.incrementAndGet();
+        try {
+            if (!semaforoEsteira.tryAcquire()) {
+                System.out.println("[ESTEIRA] Estação aguardando espaço na esteira...");
+                semaforoEsteira.acquire();
+            }
 
-        LogManager.logCarroProduzido(id, cor, tipo, idEstacao, idFuncionario, produzidos, CAPACIDADE);
-        System.out.printf("[ESTEIRA] Carro %d (%s %s) adicionado (Total: %d/%d)%n",
-                id, cor, tipo, produzidos, CAPACIDADE);
+            synchronized (veiculos) {
+                if (FabricaVeiculos.producaoEncerrada) {
+                    semaforoEsteira.release(); // libera o slot que foi adquirido
+                    return;
+                }
+
+                int id = idCarro.getAndIncrement();
+                veiculos.add(id + " (" + carro + ")");
+                System.out.println("[ESTEIRA] Carro " + id + " (" + carro + ") adicionado (Total: " + veiculos.size() + "/" + CAPACIDADE + ")");
+
+
+                if (id >= 500) {
+                    FabricaVeiculos.producaoEncerrada = true;
+                    System.out.println("Capacidade máxima de produção atingida!");
+                    System.out.println("Encerrando Produção!!");
+                }
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    public static String removerCarro() {
+        synchronized (veiculos) {
+            if (!veiculos.isEmpty()) {
+                String carro = veiculos.remove();
+                semaforoEsteira.release(); // libera espaço na esteira
+                System.out.println("[ESTEIRA] Carro " + carro + " removido (Restantes: " + veiculos.size() + "/" + CAPACIDADE + ")");
+                return carro;
+            }
+        }
+        return null;
+    }
+
+
+
+    public static int getIdAtualCarro() {
+        return idCarro.get();
+    }
+
+    public static int getQuantidadeVeiculos() {
+        synchronized (veiculos) {
+            return veiculos.size();
+        }
     }
 }
