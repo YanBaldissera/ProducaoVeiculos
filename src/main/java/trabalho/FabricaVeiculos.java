@@ -1,4 +1,4 @@
-package Fabricacao.ProducaoVeiculos.src;
+package trabalho;
 
 import javax.websocket.*;
 import javax.websocket.server.ServerEndpoint;
@@ -12,7 +12,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class FabricaVeiculos {
     public static final AtomicInteger estoquePecas = new AtomicInteger(500);
     public static final Semaphore semaforoEsteira = new Semaphore(5);
-
     private static List<Session> lojasConectadas = new ArrayList<>();
     public static volatile boolean producaoEncerrada = false;
 
@@ -25,12 +24,17 @@ public class FabricaVeiculos {
     @OnMessage
     public void onMessage(String message, Session session) throws IOException {
         if (message.equals("pedir_veiculo")) {
-            String veiculo = Esteira.removerCarro();
+            String carro = Esteira.removerCarro();
+            int idCarro = Esteira.getIdAtualCarro();
+            int posicaoEsteira = Esteira.getQuantidadeVeiculos() + 1;
+            String[] corModelo = carro != null ? carro.split(" ") : new String[]{"-", "-"};
 
-            if (veiculo != null) {
-                session.getBasicRemote().sendText("Fábrica vendeu o veículo: " + veiculo);
+            if (carro != null) {
+                session.getBasicRemote().sendText("Fábrica vendeu o veículo: " + carro);
 
-                // Agora sim: se atingiu o limite e esvaziou a esteira, aí sim podemos encerrar de vez
+                int posicaoLoja = 1;
+                LogVenda.registrar(idCarro, corModelo[0], corModelo[1], 0, 0, posicaoEsteira, "Loja", posicaoLoja);
+
                 if (Esteira.getIdAtualCarro() >= 500 && Esteira.getQuantidadeVeiculos() == 0) {
                     session.getBasicRemote().sendText("Produção encerrada, nenhum veículo será mais vendido.");
                     producaoEncerrada = true;
@@ -54,7 +58,6 @@ public class FabricaVeiculos {
     }
 
     public static void main(String[] args) {
-        // Inicia o servidor WebSocket
         new Thread(() -> {
             Server server = new Server("localhost", 8080, "/ws", null, FabricaVeiculos.class);
             try {
@@ -65,32 +68,27 @@ public class FabricaVeiculos {
             }
         }).start();
 
-        // Inicia a produção
         for (int estacao = 1; estacao <= 4; estacao++) {
             Semaphore[] ferramentas = new Semaphore[5];
             for (int i = 0; i < 5; i++) {
                 ferramentas[i] = new Semaphore(1);
             }
             for (int func = 1; func <= 5; func++) {
-                new Thread(new Funcionario(estacao, (estacao - 1) * 5 + func,
-                        ferramentas[func - 1], ferramentas[func % 5])).start();
+                new Thread(new Funcionario(estacao, (estacao - 1) * 5 + func, ferramentas[func - 1], ferramentas[func % 5])).start();
             }
         }
 
         while (true) {
             if (producaoEncerrada && Esteira.getQuantidadeVeiculos() == 0) {
                 System.out.println("Todos os veículos vendidos. Encerrando aplicação.");
-                System.exit(0); // Finaliza o programa com sucesso
+                System.exit(0);
             }
 
             try {
-                Thread.sleep(1000); // Espera 1 segundo antes de verificar novamente
+                Thread.sleep(1000);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
         }
-
     }
-
-
 }

@@ -1,4 +1,4 @@
-package Fabricacao.ProducaoVeiculos.src;
+package trabalho;
 
 import java.util.concurrent.Semaphore;
 import java.util.Random;
@@ -21,18 +21,14 @@ public class Funcionario implements Runnable {
             if (FabricaVeiculos.producaoEncerrada) break;
 
             try {
-
                 solicitarPeca();
 
-                // produção
+                // Produção
                 System.out.println("[PROD] Estação " + idEstacao + " - Funcionário " + idFuncionario + " produzindo carro...");
-                Thread.sleep(new Random().nextInt(200) + 100);
+                Thread.sleep(random.nextInt(200) + 100);
 
                 ferramentaEsquerda.acquire();
                 ferramentaDireita.acquire();
-
-                // montagem usando ferramentas
-
 
                 if (FabricaVeiculos.producaoEncerrada) {
                     ferramentaEsquerda.release();
@@ -40,12 +36,23 @@ public class Funcionario implements Runnable {
                     break;
                 }
 
-                // escolhe cor e modelo
+                // Escolhe cor e modelo
                 String[] cores = {"Vermelho", "Verde", "Azul"};
                 String[] modelos = {"SEDAN", "SUV"};
-                String carro = cores[new Random().nextInt(3)] + " " + modelos[new Random().nextInt(2)];
+                String cor = cores[random.nextInt(3)];
+                String modelo = modelos[random.nextInt(2)];
 
-                Esteira.adicionarCarro(carro);
+                int idCarro;
+                synchronized (Esteira.idCarro) {
+                    idCarro = Esteira.getIdAtualCarro();
+                }
+                int posicaoEsteira = Esteira.getQuantidadeVeiculos() + 1;
+
+                // Adiciona o carro na esteira
+                Esteira.adicionarCarro(cor + " " + modelo);
+
+                // Registro no Log de Produção
+                LogProducao.registrar(idCarro, cor, modelo, idEstacao, idFuncionario, posicaoEsteira);
 
                 ferramentaEsquerda.release();
                 ferramentaDireita.release();
@@ -61,12 +68,10 @@ public class Funcionario implements Runnable {
         try {
             if (FabricaVeiculos.estoquePecas.get() > 0) {
                 FabricaVeiculos.estoquePecas.decrementAndGet();
-                System.out.printf("[PECA] Estação %d - Funcionário %d pegou peça%n",
-                        idEstacao, idFuncionario);
+                System.out.printf("[PECA] Estação %d - Funcionário %d pegou peça%n", idEstacao, idFuncionario);
             }
         } finally {
             FabricaVeiculos.semaforoEsteira.release();
         }
     }
-
 }

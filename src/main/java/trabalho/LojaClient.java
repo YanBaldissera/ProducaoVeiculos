@@ -1,4 +1,4 @@
-package Fabricacao.ProducaoVeiculos.src;
+package trabalho;
 
 import javax.websocket.*;
 import java.net.URI;

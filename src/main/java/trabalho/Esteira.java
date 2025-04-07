@@ -1,4 +1,4 @@
-package Fabricacao.ProducaoVeiculos.src;
+package trabalho;
 
 import java.util.LinkedList;
 import java.util.Queue;
@@ -7,8 +7,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class Esteira {
     public static final int CAPACIDADE = 40;
+    public static final AtomicInteger idCarro = new AtomicInteger(1); // Controle global de IDs
     private static final Queue<String> veiculos = new LinkedList<>();
-    private static final AtomicInteger idCarro = new AtomicInteger(1);
     private static final Semaphore semaforoEsteira = new Semaphore(CAPACIDADE, true);
 
     public static void adicionarCarro(String carro) {
@@ -22,14 +22,17 @@ public class Esteira {
 
             synchronized (veiculos) {
                 if (FabricaVeiculos.producaoEncerrada) {
-                    semaforoEsteira.release(); // libera o slot que foi adquirido
+                    semaforoEsteira.release();
                     return;
                 }
 
-                int id = idCarro.getAndIncrement();
+                int id;
+                synchronized (idCarro) {
+                    id = idCarro.getAndIncrement();
+                }
+
                 veiculos.add(id + " (" + carro + ")");
                 System.out.println("[ESTEIRA] Carro " + id + " (" + carro + ") adicionado (Total: " + veiculos.size() + "/" + CAPACIDADE + ")");
-
 
                 if (id >= 500) {
                     FabricaVeiculos.producaoEncerrada = true;
@@ -46,15 +49,13 @@ public class Esteira {
         synchronized (veiculos) {
             if (!veiculos.isEmpty()) {
                 String carro = veiculos.remove();
-                semaforoEsteira.release(); // libera espaço na esteira
+                semaforoEsteira.release();
                 System.out.println("[ESTEIRA] Carro " + carro + " removido (Restantes: " + veiculos.size() + "/" + CAPACIDADE + ")");
                 return carro;
             }
         }
         return null;
     }
-
-
 
     public static int getIdAtualCarro() {
         return idCarro.get();
