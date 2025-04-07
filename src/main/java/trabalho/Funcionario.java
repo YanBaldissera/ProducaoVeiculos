@@ -48,10 +48,8 @@ public class Funcionario implements Runnable {
                 }
                 int posicaoEsteira = Esteira.getQuantidadeVeiculos() + 1;
 
-                // Adiciona o carro na esteira
                 Esteira.adicionarCarro(cor + " " + modelo);
 
-                // Registro no Log de Produção
                 LogProducao.registrar(idCarro, cor, modelo, idEstacao, idFuncionario, posicaoEsteira);
 
                 ferramentaEsquerda.release();

@@ -113,7 +113,6 @@ public class LojaClient implements Runnable {
         new Thread(lojaB).start();
         new Thread(lojaC).start();
 
-        // Criar 20 clientes
         for (int i = 1; i <= 20; i++) {
             new Thread(new ClienteComprador("Cliente " + i, lojas)).start();
         }
