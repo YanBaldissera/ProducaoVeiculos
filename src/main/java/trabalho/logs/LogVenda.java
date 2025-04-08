@@ -1,9 +1,11 @@
-package trabalho;
+package trabalho.logs;
 
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 
 public class LogVenda {
+
     private static final String ARQUIVO_CSV = "log_venda.csv";
     private static boolean cabecalhoAdicionado = false;
 
@@ -22,5 +24,14 @@ public class LogVenda {
         }
         System.out.printf("[LOG VENDA] ID Veículo: %d | Cor: %s | Modelo: %s | Estação: %d | Funcionário: %d | Posição Esteira: %d | Loja: %s | Posição Loja: %d%n",
                 idCarro, cor, modelo, idEstacao, idFuncionario, posicaoEsteira, loja, posicaoLoja);
+    }
+
+    public static void removeExistsFileLog() {
+        try {
+            File file = new File(ARQUIVO_CSV);
+            file.deleteOnExit();
+        } catch (Exception e) {
+            System.out.println(String.format("Não foi possível deletar arquivos de log: %s", e.getMessage()));
+        }
     }
 }

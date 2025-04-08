@@ -1,5 +1,10 @@
 package trabalho;
 
+import com.google.gson.Gson;
+import trabalho.comandos.Comando;
+import trabalho.decoder.MessageDecoder;
+import trabalho.enums.TipoComando;
+
 import javax.websocket.*;
 import java.net.URI;
 import java.util.LinkedList;
@@ -7,13 +12,13 @@ import java.util.List;
 import java.util.Queue;
 import java.util.Random;
 
-@ClientEndpoint
+@ClientEndpoint(decoders = {MessageDecoder.class})
 public class LojaClient implements Runnable {
     private static final String SERVER_URI = "ws://localhost:8080/ws/fabrica";
     private Session session;
     private final String nomeLoja;
     private final Random random = new Random();
-    private final Queue<String> esteira = new LinkedList<>();
+    private final Queue<Comando> esteira = new LinkedList<>();
     private final int CAPACIDADE_ESTEIRA = 10;
     private boolean aguardandoResposta = false;
     private boolean producaoEncerrada = false;
@@ -35,19 +40,19 @@ public class LojaClient implements Runnable {
     }
 
     @OnMessage
-    public void onMessage(String message) {
-        if (message.contains("Fábrica vendeu o veículo")) {
+    public void onMessage(Comando comando) {
+        if (TipoComando.VENDER_VEICULO.equals(comando.tipoComando)) {
             synchronized (esteira) {
                 if (esteira.size() < CAPACIDADE_ESTEIRA) {
-                    esteira.add(message);
-                    System.out.println(nomeLoja + " comprou um veículo: " + message);
+                    esteira.add(comando);
+                    System.out.println(nomeLoja + " comprou um veículo: " + comando.context.get(1));
                     System.out.println("Carros disponíveis em esteira: " + esteira.size());
                 }
             }
         } else {
-            System.out.println(nomeLoja + " recebeu resposta: " + message);
+            System.out.println(nomeLoja + " recebeu resposta: " + comando.context.get(0));
 
-            if (message.contains("Produção encerrada")) {
+            if (TipoComando.PRODUCAO_ENCERRADA.equals(comando.tipoComando)) {
                 producaoEncerrada = true;
             }
         }
@@ -79,7 +84,7 @@ public class LojaClient implements Runnable {
                     synchronized (esteira) {
                         if (esteira.size() < CAPACIDADE_ESTEIRA && !aguardandoResposta) {
                             System.out.println(nomeLoja + " tentando comprar um veículo...");
-                            session.getBasicRemote().sendText("pedir_veiculo");
+                            session.getBasicRemote().sendText(new Gson().toJson(Comando.getInstance(TipoComando.PEDIR_VEICULO, List.of(nomeLoja))));
                             aguardandoResposta = true;
                         }
                     }
@@ -92,7 +97,7 @@ public class LojaClient implements Runnable {
         }
     }
 
-    public synchronized String venderParaCliente() {
+    public synchronized Comando venderParaCliente() {
         synchronized (esteira) {
             return esteira.poll();
         }

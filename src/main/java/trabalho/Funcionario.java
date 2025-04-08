@@ -1,5 +1,7 @@
 package trabalho;
 
+import trabalho.logs.LogProducao;
+
 import java.util.concurrent.Semaphore;
 import java.util.Random;
 
@@ -13,6 +15,7 @@ public class Funcionario implements Runnable {
         this.idFuncionario = idFuncionario;
         this.ferramentaEsquerda = ferramentaEsquerda;
         this.ferramentaDireita = ferramentaDireita;
+        LogProducao.removeExistsFileLog();
     }
 
     @Override
